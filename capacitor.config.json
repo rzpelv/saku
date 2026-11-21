@@ -1,0 +1,21 @@
+{
+  "appId": "id.saku.app",
+  "appName": "Saku",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#f7f8fa",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    }
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f7f8fa",
+    "preferredContentMode": "mobile",
+    "scrollEnabled": true
+  }
+}

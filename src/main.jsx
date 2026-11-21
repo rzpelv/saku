@@ -54,6 +54,8 @@ import {
 } from "./finance.js";
 import "./style.css";
 import { LedgerConflictError, writeLedger } from "./storage.js";
+import { exportFile } from "./export.js";
+import { SplashScreen } from "@capacitor/splash-screen";
 
 const KEY = "saku.finance.v1";
 const icons = {
@@ -124,6 +126,12 @@ function Modal({ title, children, onClose, wide = false }) {
   );
 }
 function App() {
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => { void SplashScreen.hide(); });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const [loaded] = useState(initial);
   const persisted = useRef(loaded.raw);
   const [data, setData] = useState(loaded.data);
@@ -244,13 +252,12 @@ function App() {
     setMonth(next);
     setShowAll(false);
   }
-  function download(content, name, type) {
-    const url = URL.createObjectURL(new Blob([content], { type }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  async function download(content, name, type) {
+    try {
+      await exportFile(content, name, type);
+    } catch {
+      setToast("Ekspor tidak selesai. Silakan coba lagi.");
+    }
   }
   async function importFile(e) {
     const file = e.target.files[0];
