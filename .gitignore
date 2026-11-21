@@ -2,3 +2,10 @@ node_modules/
 dist/
 *.local
 .DS_Store
+.bundle/
+vendor/bundle/
+*.p8
+.env
+.env.*
+ios/App/fastlane/report.xml
+ios/App/fastlane/README.md
