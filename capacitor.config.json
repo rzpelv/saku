@@ -2,6 +2,11 @@
   "appId": "id.saku.app",
   "appName": "Saku",
   "webDir": "dist",
+  "plugins": {
+    "Keyboard": {
+      "resize": "native"
+    }
+  },
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#f7f8fa",
