@@ -24,6 +24,16 @@ const transaction = {
   date: "2026-11-21",
   note: "",
 };
+test("ledgers remain readable after growing beyond 20,000 transactions", () => {
+  const state = emptyState();
+  state.transactions = Array.from({ length: 20001 }, (_, i) => ({
+    ...transaction,
+    id: `record-${i}`,
+  }));
+  const restored = parseBackup(JSON.stringify(state));
+  assert.equal(restored.transactions.length, 20001);
+  assert.deepEqual(restored.transactions.at(-1), state.transactions.at(-1));
+});
 test("Indonesian thousands separators never become decimal rupiah", () => {
   for (const [input, expected] of [
     ["5.000", 5000],

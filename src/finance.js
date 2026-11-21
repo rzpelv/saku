@@ -187,7 +187,6 @@ export function parseBackup(raw) {
     data.version !== 1 ||
     typeof data.demo !== "boolean" ||
     !Array.isArray(data.transactions) ||
-    data.transactions.length > 20000 ||
     !data.transactions.every(validTransaction) ||
     new Set(data.transactions.map((t) => t.id)).size !==
       data.transactions.length ||
