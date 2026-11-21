@@ -54,6 +54,7 @@ import {
 } from "./finance.js";
 import "./style.css";
 import { LedgerConflictError, writeLedger } from "./storage.js";
+import { exportFile } from "./export.js";
 
 const KEY = "saku.finance.v1";
 const icons = {
@@ -244,13 +245,12 @@ function App() {
     setMonth(next);
     setShowAll(false);
   }
-  function download(content, name, type) {
-    const url = URL.createObjectURL(new Blob([content], { type }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  async function download(content, name, type) {
+    try {
+      await exportFile(content, name, type);
+    } catch {
+      setToast("Ekspor tidak selesai. Silakan coba lagi.");
+    }
   }
   async function importFile(e) {
     const file = e.target.files[0];
