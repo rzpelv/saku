@@ -153,7 +153,11 @@ export function validTransaction(t) {
       (c) => c.id === t.category && Boolean(c.income) === (t.type === "income"),
     ) &&
     typeof t.note === "string" &&
-    t.note.length <= 300
+    t.note.length <= 300 &&
+    (t.createdAt === undefined ||
+      (typeof t.createdAt === "string" &&
+        t.createdAt.length <= 30 &&
+        Number.isFinite(Date.parse(t.createdAt))))
   );
 }
 export function parseBackup(raw) {
@@ -168,6 +172,14 @@ export function parseBackup(raw) {
     new Set(data.transactions.map((t) => t.id)).size !==
       data.transactions.length ||
     !data.budgets ||
+    (data.entryDefaults !== undefined &&
+      (!data.entryDefaults ||
+        !["income", "expense"].includes(data.entryDefaults.type) ||
+        !categories.some(
+          (c) =>
+            c.id === data.entryDefaults.category &&
+            Boolean(c.income) === (data.entryDefaults.type === "income"),
+        ))) ||
     !categories
       .filter((c) => !c.income)
       .every((c) => validAmount(data.budgets[c.id]))
@@ -178,8 +190,16 @@ export function parseBackup(raw) {
   return {
     version: 1,
     demo: data.demo,
+    ...(data.entryDefaults
+      ? {
+          entryDefaults: {
+            type: data.entryDefaults.type,
+            category: data.entryDefaults.category,
+          },
+        }
+      : {}),
     transactions: data.transactions.map(
-      ({ id, name, amount, category, type, date, note }) => ({
+      ({ id, name, amount, category, type, date, note, createdAt }) => ({
         id,
         name,
         amount,
@@ -187,6 +207,7 @@ export function parseBackup(raw) {
         type,
         date,
         note,
+        ...(createdAt ? { createdAt } : {}),
       }),
     ),
     budgets: Object.fromEntries(
@@ -215,6 +236,10 @@ export function summarize(transactions, month) {
       ]),
   );
   return { items, income, expense, balance: income - expense, byCategory };
+}
+export function latestTransactions(items) {
+  // Array order is the creation order, including backups from before timestamps.
+  return [...items].reverse().sort((a, b) => b.date.localeCompare(a.date));
 }
 export function csvExport(items) {
   const cell = (value) =>

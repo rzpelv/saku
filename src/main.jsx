@@ -46,6 +46,7 @@ import {
   validDate,
   parseBackup,
   csvExport,
+  latestTransactions,
 } from "./finance.js";
 import "./style.css";
 
@@ -148,9 +149,7 @@ function App() {
   const summary = summarize(data.transactions, month);
   const totalBudget = Object.values(data.budgets).reduce((a, b) => a + b, 0);
   const usage = Math.round((summary.expense / totalBudget) * 100);
-  const sorted = [...summary.items].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id),
-  );
+  const sorted = latestTransactions(summary.items);
   const filtered = sorted.filter(
     (t) =>
       (filter === "all" || t.type === filter) &&
@@ -256,8 +255,14 @@ function App() {
                         <div>
                           <strong>{t.name}</strong>
                           <span>
-                            {t.note ||
-                              `${new Date(t.date + "T12:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" })} · ${category.name}`}
+                            {`${new Date(t.date + "T12:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" })} · ${category.name}`}
+                          </span>
+                          <span title={t.id}>
+                            {t.createdAt
+                              ? `${new Date(t.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · `
+                              : ""}
+                            #{t.id.slice(0, 8)}
+                            {t.note ? ` · ${t.note}` : ""}
                           </span>
                         </div>
                       </div>
@@ -941,12 +946,17 @@ function App() {
       )}
       {modal?.kind === "transaction" && (
         <TransactionModal
+          defaults={data.entryDefaults}
           transaction={modal.transaction}
           onClose={() => setModal(null)}
           onSave={(transaction) => {
             save(
               {
                 ...data,
+                entryDefaults: {
+                  type: transaction.type,
+                  category: transaction.category,
+                },
                 transactions: modal.transaction
                   ? data.transactions.map((t) =>
                       t.id === transaction.id ? transaction : t,
@@ -1124,9 +1134,19 @@ function AmountField({ name, label, initialValue }) {
     </label>
   );
 }
-function TransactionModal({ transaction, onClose, onSave, onDelete }) {
-  const [type, setType] = useState(transaction?.type || "expense");
-  const [category, setCategory] = useState(transaction?.category || "food");
+function TransactionModal({
+  transaction,
+  defaults,
+  onClose,
+  onSave,
+  onDelete,
+}) {
+  const [type, setType] = useState(
+    transaction?.type || defaults?.type || "expense",
+  );
+  const [category, setCategory] = useState(
+    transaction?.category || defaults?.category || "food",
+  );
   const [error, setError] = useState("");
   function submit(e) {
     e.preventDefault();
@@ -1142,6 +1162,7 @@ function TransactionModal({ transaction, onClose, onSave, onDelete }) {
     }
     onSave({
       id: transaction?.id || crypto.randomUUID(),
+      createdAt: transaction?.createdAt || new Date().toISOString(),
       type,
       category,
       name,
@@ -1162,7 +1183,9 @@ function TransactionModal({ transaction, onClose, onSave, onDelete }) {
             className={type === "expense" ? "selected" : ""}
             onClick={() => {
               setType("expense");
-              setCategory("food");
+              setCategory(
+                defaults?.type === "expense" ? defaults.category : "food",
+              );
             }}
           >
             <ArrowUpRight size={17} /> Pengeluaran
@@ -1172,7 +1195,9 @@ function TransactionModal({ transaction, onClose, onSave, onDelete }) {
             className={type === "income" ? "selected" : ""}
             onClick={() => {
               setType("income");
-              setCategory("salary");
+              setCategory(
+                defaults?.type === "income" ? defaults.category : "salary",
+              );
             }}
           >
             <ArrowDownLeft size={17} /> Pemasukan

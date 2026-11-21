@@ -7,6 +7,7 @@ import {
   parseBackup,
   validAmount,
   parseRupiah,
+  latestTransactions,
   validDate,
   csvExport,
 } from "./finance.js";
@@ -44,6 +45,31 @@ test("Indonesian thousands separators never become decimal rupiah", () => {
     "5 000",
   ])
     assert.ok(Number.isNaN(parseRupiah(input)), input);
+});
+test("same-day transactions show newest insertion first regardless of random id", () => {
+  const older = { ...transaction, id: "zzz" },
+    newer = { ...transaction, id: "aaa" };
+  const previous = { ...transaction, id: "previous", date: "2026-10-01" };
+  assert.deepEqual(
+    latestTransactions([older, newer, previous]).map((t) => t.id),
+    ["aaa", "zzz", "previous"],
+  );
+});
+test("new backups preserve entry defaults and creation timestamps; old backups still work", () => {
+  const state = {
+    ...emptyState(),
+    entryDefaults: { type: "income", category: "income" },
+    transactions: [{ ...transaction, createdAt: "2026-11-21T11:38:00.000Z" }],
+  };
+  assert.deepEqual(parseBackup(JSON.stringify(state)), state);
+  assert.throws(() =>
+    parseBackup(
+      JSON.stringify({
+        ...state,
+        entryDefaults: { type: "income", category: "food" },
+      }),
+    ),
+  );
 });
 test("monthly totals isolate other months and separate income from expenses", () => {
   const result = summarize(
