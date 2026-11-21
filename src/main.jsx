@@ -53,6 +53,7 @@ import {
   latestTransactions,
 } from "./finance.js";
 import "./style.css";
+import { LedgerConflictError, writeLedger } from "./storage.js";
 
 const KEY = "saku.finance.v1";
 const icons = {
@@ -74,12 +75,14 @@ const navigation = [
   { id: "reports", label: "Laporan", icon: ChartNoAxesCombined },
 ];
 function initial() {
+  let raw = null;
   try {
-    const value = localStorage.getItem(KEY);
-    return { data: value ? parseBackup(value) : demoState(), error: "" };
+    raw = localStorage.getItem(KEY);
+    return { data: raw ? parseBackup(raw) : demoState(), raw, error: "" };
   } catch {
     return {
       data: emptyState(),
+      raw,
       error:
         "Data tersimpan tidak dapat dibaca. Data lama belum diubah; impor cadangan atau ekspor data sebelum melanjutkan.",
     };
@@ -122,6 +125,7 @@ function Modal({ title, children, onClose, wide = false }) {
 }
 function App() {
   const [loaded] = useState(initial);
+  const persisted = useRef(loaded.raw);
   const [data, setData] = useState(loaded.data);
   const [storageError, setStorageError] = useState(loaded.error);
   const [page, setPage] = useState("overview");
@@ -159,17 +163,46 @@ function App() {
         : next,
     );
   }
-  function save(next, message) {
-    setData(next);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
+  async function save(next, message) {
+    const expected = persisted.current;
+    const write = () => {
+      persisted.current = writeLedger(localStorage, KEY, expected, next);
+      setData(next);
       setStorageError("");
-    } catch {
-      setStorageError(
-        "Penyimpanan browser penuh atau tidak tersedia. Ekspor cadangan sebelum menutup halaman.",
-      );
+      if (message) setToast(message);
+      return true;
+    };
+    try {
+      if (!navigator.locks) {
+        throw new Error("unsupported");
+      }
+      return await navigator.locks.request(KEY, write);
+    } catch (error) {
+      setModal(null);
+      setUndoDelete(null);
+      setToast("");
+      if (error instanceof LedgerConflictError) {
+        try {
+          const fresh = error.raw ? parseBackup(error.raw) : demoState();
+          persisted.current = error.raw;
+          setData(fresh);
+          setStorageError(
+            "Catatan berubah di tab lain. Perubahan ini belum disimpan; data terbaru sudah dimuat. Silakan ulangi perubahanmu.",
+          );
+        } catch {
+          setStorageError(
+            "Data di tab lain tidak dapat dibaca. Perubahan ini belum disimpan dan data lama tidak ditimpa. Impor cadangan yang valid.",
+          );
+        }
+      } else {
+        setStorageError(
+          !navigator.locks
+            ? "Perubahan belum disimpan. Gunakan browser terbaru melalui HTTPS atau localhost untuk penyimpanan aman antartab."
+            : "Perubahan belum disimpan: penyimpanan browser penuh atau tidak tersedia. Catatan sebelumnya tidak diubah. Ekspor cadangan sebelum melanjutkan.",
+        );
+      }
+      return false;
     }
-    if (message) setToast(message);
   }
   const summary = summarize(data.transactions, month);
   const currentBudgets = budgetsForMonth(data, month);
@@ -1009,15 +1042,17 @@ function App() {
           {toast}
           {undoDelete && toast === "Transaksi dihapus" && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 const transactions = [...data.transactions];
                 transactions.splice(
                   undoDelete.index,
                   0,
                   undoDelete.transaction,
                 );
-                save({ ...data, transactions }, "Transaksi dikembalikan");
-                setUndoDelete(null);
+                if (
+                  await save({ ...data, transactions }, "Transaksi dikembalikan")
+                )
+                  setUndoDelete(null);
               }}
             >
               Urungkan
@@ -1031,8 +1066,8 @@ function App() {
           defaultDate={dateForMonth(month)}
           transaction={modal.transaction}
           onClose={() => setModal(null)}
-          onSave={(transaction) => {
-            save(
+          onSave={async (transaction) => {
+            const saved = await save(
               {
                 ...data,
                 entryDefaults: {
@@ -1047,6 +1082,7 @@ function App() {
               },
               "Transaksi berhasil disimpan",
             );
+            if (!saved) return;
             setMonth(transaction.date.slice(0, 7));
             setModal(null);
           }}
@@ -1059,8 +1095,8 @@ function App() {
           amount={currentBudgets[modal.category.id]}
           month={month}
           onClose={() => setModal(null)}
-          onSave={(amount) => {
-            save(
+          onSave={async (amount) => {
+            const saved = await save(
               {
                 ...data,
                 monthlyBudgets: {
@@ -1073,6 +1109,7 @@ function App() {
               },
               "Anggaran diperbarui",
             );
+            if (!saved) return;
             setModal(null);
           }}
         />
@@ -1101,22 +1138,22 @@ function App() {
             </button>
             <button
               className={modal.kind === "delete" ? "danger" : "primary"}
-              onClick={() => {
+              onClick={async () => {
                 if (modal.kind === "start") {
-                  save(
+                  const saved = await save(
                     startPersonal(data),
                     "Catatan pribadimu siap. Mulai dari satu transaksi.",
                   );
-                  setModal(modal.afterStart || null);
+                  if (saved) setModal(modal.afterStart || null);
                   return;
                 } else if (modal.kind === "delete") {
-                  setUndoDelete({
+                  const deleted = {
                     transaction: modal.transaction,
                     index: data.transactions.findIndex(
                       (t) => t.id === modal.transaction.id,
                     ),
-                  });
-                  save(
+                  };
+                  const saved = await save(
                     {
                       ...data,
                       transactions: data.transactions.filter(
@@ -1125,7 +1162,12 @@ function App() {
                     },
                     "Transaksi dihapus",
                   );
-                } else save(modal.data, "Cadangan berhasil dipulihkan");
+                  if (!saved) return;
+                  setUndoDelete(deleted);
+                } else if (
+                  !(await save(modal.data, "Cadangan berhasil dipulihkan"))
+                )
+                  return;
                 setModal(null);
               }}
             >

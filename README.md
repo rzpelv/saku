@@ -20,6 +20,8 @@ Run finance calculation and input validation tests with `npm test`.
 
 Data lives only in this browser's localStorage, not on a server. It is not synced between devices or browsers. Clearing browser data removes it. Export JSON backups from the sidebar and import them later. CSV export is available for spreadsheet use.
 
+Saving requires a modern browser with Web Locks support over HTTPS or localhost. Writes are serialized across tabs; a stale tab reloads the latest saved ledger and asks the user to retry rather than overwriting another tab's changes.
+
 The app starts with clearly labelled demo data. “Mulai catatan saya” clears the demo after confirmation and starts an empty personal ledger. No login, bank connection, analytics, payments, or service worker. The web manifest supports an app icon, but offline use is not promised.
 
 All summaries are calculated from transactions in the selected calendar month; balance is monthly net income, not an actual bank account balance. Default budgets repeat, while edits apply only to the selected month and do not rewrite history. Amounts are whole rupiah; negatives and zero are not accepted. There are no transfers or multi-currency accounts in this first version.
