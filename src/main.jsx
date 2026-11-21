@@ -871,12 +871,12 @@ function App() {
                   <h2>{currency(totalBudget)}</h2>
                 </div>
                 <div className="budget-summary-right">
-                  <strong className={usage > 100 ? "negative" : ""}>
+                  <strong className={summary.expense > totalBudget ? "negative" : ""}>
                     {usage}% terpakai
                   </strong>
                   <span>
                     {currency(Math.abs(totalBudget - summary.expense))}{" "}
-                    {usage > 100 ? "melewati anggaran" : "tersisa"}
+                    {summary.expense > totalBudget ? "melewati anggaran" : "tersisa"}
                   </span>
                 </div>
               </section>
