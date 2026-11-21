@@ -12,6 +12,7 @@ import {
   budgetsForMonth,
   dateForMonth,
   validDate,
+  validMonth,
   csvExport,
 } from "./finance.js";
 
@@ -24,6 +25,12 @@ const transaction = {
   date: "2026-11-21",
   note: "",
 };
+test("month selection shares the backup date bounds", () => {
+  for (const month of ["1900-01", "2026-11", "2199-12"])
+    assert.equal(validMonth(month), true, month);
+  for (const month of ["1899-12", "2200-11", "2026-00", "2026-13", "2026-1", "", null])
+    assert.equal(validMonth(month), false, String(month));
+});
 test("ledgers remain readable after growing beyond 20,000 transactions", () => {
   const state = emptyState();
   state.transactions = Array.from({ length: 20001 }, (_, i) => ({

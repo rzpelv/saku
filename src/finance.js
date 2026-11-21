@@ -157,6 +157,9 @@ export function validDate(value) {
     !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   );
 }
+export function validMonth(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}$/.test(value) && validDate(`${value}-01`);
+}
 export function validTransaction(t) {
   return (
     t &&
@@ -198,8 +201,7 @@ export function parseBackup(raw) {
         Object.keys(data.monthlyBudgets).length > 3600 ||
         !Object.entries(data.monthlyBudgets).every(
           ([month, values]) =>
-            /^\d{4}-\d{2}$/.test(month) &&
-            validDate(month + "-01") &&
+              validMonth(month) &&
             values &&
             typeof values === "object" &&
             !Array.isArray(values) &&

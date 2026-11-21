@@ -47,6 +47,7 @@ import {
   validAmount,
   parseRupiah,
   validDate,
+  validMonth,
   parseBackup,
   csvExport,
   latestTransactions,
@@ -610,7 +611,7 @@ function App() {
                   aria-label="Pilih bulan"
                   onChange={(e) => {
                     setAllMonths(false);
-                    if (/^\d{4}-\d{2}$/.test(e.target.value))
+                    if (validMonth(e.target.value))
                       setMonth(e.target.value);
                   }}
                 />
