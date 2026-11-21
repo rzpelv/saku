@@ -1247,6 +1247,30 @@ dialog::backdrop {
 .amount-hint {
   color: var(--text-muted);
 }
+.search-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 23px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.search-scope input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+.balance-context {
+  display: block;
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 12px;
+  max-width: 90%;
+}
 .form-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2126,16 +2150,16 @@ dialog::backdrop {
   .month-switch {
     gap: 10px;
   }
-  .month-switch > span {
+  .month-switch label {
     font-size: 14px;
   }
-  .month-note {
+  .period-hint {
     display: none;
   }
   .transaction-filters {
     gap: 12px;
   }
-  .filter-buttons button {
+  .segmented button {
     font-size: 12px;
     min-height: 44px;
   }

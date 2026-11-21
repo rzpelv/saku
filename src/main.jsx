@@ -126,6 +126,7 @@ function App() {
   const [page, setPage] = useState("overview");
   const [month, setMonth] = useState(localDate().slice(0, 7));
   const [search, setSearch] = useState("");
+  const [allMonths, setAllMonths] = useState(false);
   const [filter, setFilter] = useState("all");
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState("");
@@ -173,7 +174,15 @@ function App() {
   const currentBudgets = budgetsForMonth(data, month);
   const totalBudget = Object.values(currentBudgets).reduce((a, b) => a + b, 0);
   const usage = Math.round((summary.expense / totalBudget) * 100);
-  const sorted = latestTransactions(summary.items);
+  const sorted = latestTransactions(
+    page === "transactions" && allMonths ? data.transactions : summary.items,
+  );
+  const cumulativeBalance = data.transactions
+    .filter((t) => t.date.slice(0, 7) <= month)
+    .reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0);
+  const overBudgetCount = categories.filter(
+    (c) => !c.income && summary.byCategory[c.id] > currentBudgets[c.id],
+  ).length;
   const filtered = sorted.filter(
     (t) =>
       (filter === "all" || t.type === filter) &&
@@ -185,6 +194,7 @@ function App() {
     .filter((c) => !c.income && summary.byCategory[c.id] > 0)
     .sort((a, b) => summary.byCategory[b.id] - summary.byCategory[a.id]);
   function navigate(id) {
+    setAllMonths(false);
     setPage(id);
     setSearch("");
     setFilter("all");
@@ -192,6 +202,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function moveMonth(offset) {
+    setAllMonths(false);
     const d = new Date(month + "-01T12:00:00");
     d.setMonth(d.getMonth() + offset);
     const next = localDate(d).slice(0, 7);
@@ -255,6 +266,16 @@ function App() {
             />
           </label>
         </div>
+        {page === "transactions" && (
+          <label className="search-scope">
+            <input
+              type="checkbox"
+              checked={allMonths}
+              onChange={(e) => setAllMonths(e.target.checked)}
+            />
+            Cari di semua bulan
+          </label>
+        )}
         <div className="table-scroll">
           <table>
             <thead>
@@ -297,7 +318,7 @@ function App() {
                     <td className="muted date-cell">
                       {new Date(t.date + "T12:00:00").toLocaleDateString(
                         "id-ID",
-                        { day: "numeric", month: "short" },
+                        { day: "numeric", month: "short", year: "numeric" },
                       )}
                     </td>
                     <td
@@ -356,7 +377,11 @@ function App() {
           <span>
             {visible.length} dari {filtered.length} transaksi
           </span>
-          <span>{monthLabel(month)}</span>
+          <span>
+            {allMonths && page === "transactions"
+              ? "Semua bulan"
+              : monthLabel(month)}
+          </span>
         </div>
       </>
     );
@@ -364,6 +389,11 @@ function App() {
   function budgetRows(all = false) {
     return categories
       .filter((c) => !c.income)
+      .sort(
+        (a, b) =>
+          summary.byCategory[b.id] / currentBudgets[b.id] -
+          summary.byCategory[a.id] / currentBudgets[a.id],
+      )
       .slice(0, all ? undefined : 3)
       .map((c) => {
         const spent = summary.byCategory[c.id];
@@ -579,6 +609,7 @@ function App() {
                   max="2199-12"
                   aria-label="Pilih bulan"
                   onChange={(e) => {
+                    setAllMonths(false);
                     if (/^\d{4}-\d{2}$/.test(e.target.value))
                       setMonth(e.target.value);
                   }}
@@ -602,7 +633,7 @@ function App() {
             <section className="summary-grid" aria-label="Ringkasan keuangan">
               <article className="balance-card">
                 <div className="summary-label">
-                  <span>Sisa uang bulan ini</span>
+                  <span>Selisih uang bulan ini</span>
                   <Wallet size={20} />
                 </div>
                 <h2>{currency(summary.balance)}</h2>
@@ -613,6 +644,10 @@ function App() {
                     ? `${Math.round((summary.balance / summary.income) * 100)}% dari pemasukan tersisa`
                     : "Pemasukan dikurangi pengeluaran"}
                 </p>
+                <small className="balance-context">
+                  Akumulasi catatan s.d. {monthLabel(month)}:{" "}
+                  {currency(cumulativeBalance)}. Bukan saldo rekening.
+                </small>
                 <div className="balance-decoration" aria-hidden="true">
                   <Leaf size={110} strokeWidth={0.65} />
                 </div>
@@ -765,8 +800,8 @@ function App() {
                   <div>
                     <h2>Jaga rencana bulanan</h2>
                     <p>
-                      {usage > 100
-                        ? "Saatnya meninjau kembali rencanamu"
+                      {overBudgetCount > 0
+                        ? `${overBudgetCount} kategori melewati anggaran — lihat kategori terbesar di bawah`
                         : "Sedikit batas, lebih banyak kendali"}
                     </p>
                   </div>
