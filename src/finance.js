@@ -116,6 +116,14 @@ export function demoState() {
 export function validAmount(value) {
   return Number.isSafeInteger(value) && value > 0 && value <= 1000000000000;
 }
+export function parseRupiah(raw) {
+  if (typeof raw !== "string") return NaN;
+  const value = raw.trim().replace(/^Rp\s*/i, "");
+  // Dots are thousands separators in Indonesian, never decimal points.
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,00)?$/.test(value)) return NaN;
+  const amount = Number(value.replace(/,00$/, "").replaceAll(".", ""));
+  return validAmount(amount) ? amount : NaN;
+}
 export function validDate(value) {
   if (
     typeof value !== "string" ||

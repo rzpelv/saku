@@ -2,7 +2,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 
-const root = resolve("dist");
+const root = resolve(process.env.STATIC_DIR || "dist");
 const types = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",

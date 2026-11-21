@@ -6,6 +6,7 @@ import {
   summarize,
   parseBackup,
   validAmount,
+  parseRupiah,
   validDate,
   csvExport,
 } from "./finance.js";
@@ -19,6 +20,31 @@ const transaction = {
   date: "2026-11-21",
   note: "",
 };
+test("Indonesian thousands separators never become decimal rupiah", () => {
+  for (const [input, expected] of [
+    ["5.000", 5000],
+    ["12.500.000", 12500000],
+    ["5000", 5000],
+    [" Rp 5.000 ", 5000],
+    ["1.500.000,00", 1500000],
+    ["1.000.000.000.000", 1000000000000],
+  ])
+    assert.equal(parseRupiah(input), expected);
+  for (const input of [
+    "12.5",
+    "12.50",
+    "1,5",
+    "5,000",
+    "-5.000",
+    "1e6",
+    "",
+    "0",
+    "1.000.000.000.001",
+    "5.000.00",
+    "5 000",
+  ])
+    assert.ok(Number.isNaN(parseRupiah(input)), input);
+});
 test("monthly totals isolate other months and separate income from expenses", () => {
   const result = summarize(
     [

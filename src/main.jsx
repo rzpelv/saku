@@ -42,6 +42,7 @@ import {
   emptyState,
   summarize,
   validAmount,
+  parseRupiah,
   validDate,
   parseBackup,
   csvExport,
@@ -1083,6 +1084,46 @@ function App() {
     </div>
   );
 }
+function AmountField({ name, label, initialValue }) {
+  const [raw, setRaw] = useState(
+    initialValue === undefined
+      ? ""
+      : new Intl.NumberFormat("id-ID").format(initialValue),
+  );
+  const parsed = parseRupiah(raw);
+  return (
+    <label className="field amount-field">
+      {label}
+      <span>
+        <b>Rp</b>
+        <input
+          autoFocus
+          name={name}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="0"
+          maxLength={35}
+          required
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          aria-describedby={`${name}-hint`}
+        />
+      </span>
+      <small
+        id={`${name}-hint`}
+        className={raw && !validAmount(parsed) ? "negative" : "amount-hint"}
+        aria-live="polite"
+      >
+        {!raw
+          ? "Tulis 5000 atau 5.000, tanpa pecahan rupiah."
+          : validAmount(parsed)
+            ? `Akan dicatat: ${currency(parsed)}`
+            : "Gunakan angka bulat, misalnya 5.000. Maksimal 1 triliun."}
+      </small>
+    </label>
+  );
+}
 function TransactionModal({ transaction, onClose, onSave, onDelete }) {
   const [type, setType] = useState(transaction?.type || "expense");
   const [category, setCategory] = useState(transaction?.category || "food");
@@ -1090,7 +1131,7 @@ function TransactionModal({ transaction, onClose, onSave, onDelete }) {
   function submit(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const amount = Number(form.get("amount"));
+    const amount = parseRupiah(form.get("amount"));
     const name = form.get("name").trim();
     const date = form.get("date");
     if (!validAmount(amount) || !name || !validDate(date)) {
@@ -1137,24 +1178,11 @@ function TransactionModal({ transaction, onClose, onSave, onDelete }) {
             <ArrowDownLeft size={17} /> Pemasukan
           </button>
         </div>
-        <label className="field amount-field">
-          Nominal
-          <span>
-            <b>Rp</b>
-            <input
-              autoFocus
-              name="amount"
-              type="number"
-              inputMode="numeric"
-              placeholder="0"
-              min="1"
-              max="1000000000000"
-              step="1"
-              required
-              defaultValue={transaction?.amount}
-            />
-          </span>
-        </label>
+        <AmountField
+          name="amount"
+          label="Nominal"
+          initialValue={transaction?.amount}
+        />
         <label className="field">
           Nama transaksi
           <input
@@ -1240,7 +1268,9 @@ function BudgetModal({ category, amount, onClose, onSave }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          const value = Number(new FormData(e.currentTarget).get("budget"));
+          const value = parseRupiah(
+            new FormData(e.currentTarget).get("budget"),
+          );
           if (!validAmount(value)) {
             setError(
               "Masukkan rupiah bulat lebih dari nol, maksimal 1 triliun.",
@@ -1250,23 +1280,11 @@ function BudgetModal({ category, amount, onClose, onSave }) {
           onSave(value);
         }}
       >
-        <label className="field amount-field">
-          Anggaran bulanan
-          <span>
-            <b>Rp</b>
-            <input
-              autoFocus
-              name="budget"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="1000000000000"
-              step="1"
-              required
-              defaultValue={amount}
-            />
-          </span>
-        </label>
+        <AmountField
+          name="budget"
+          label="Anggaran bulanan"
+          initialValue={amount}
+        />
         {error && (
           <p role="alert" className="negative">
             {error}
