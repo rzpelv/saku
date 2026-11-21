@@ -8,6 +8,7 @@
     "build": "vite build",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
+    "ios:testflight": "cd ios/App && bundle exec fastlane ios beta",
     "ios:build": "npm run ios:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build",
     "start": "node server.mjs",
     "test": "node --test src/*.test.js"
