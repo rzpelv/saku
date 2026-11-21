@@ -31,6 +31,16 @@ test("failed cache write does not open share sheet", async () => {
   }), /disk full/);
 });
 
+for (const name of ["backup.json", "transactions.csv"]) {
+  test(`native share cancellation is a silent no-op: ${name}`, async () => {
+    await assert.doesNotReject(exportFile("", name, "text/plain", {
+      native: true,
+      filesystem: { writeFile: async () => ({ uri: `file:///cache/${name}` }) },
+      share: { share: async () => { throw new Error("Share canceled"); } },
+    }));
+  });
+}
+
 test("share failure is reported to caller", async () => {
   await assert.rejects(exportFile("{}", "backup.json", "application/json", {
     native: true,

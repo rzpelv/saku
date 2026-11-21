@@ -16,7 +16,11 @@ export async function exportFile(content, name, type, {
       directory: Directory.Cache,
       encoding: Encoding.UTF8,
     });
-    await share.share({ title: name, files: [uri] });
+    try {
+      await share.share({ title: name, files: [uri] });
+    } catch (error) {
+      if (error?.message !== "Share canceled") throw error;
+    }
     return;
   }
   const url = browserURL.createObjectURL(new Blob([content], { type }));
