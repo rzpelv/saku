@@ -4,7 +4,7 @@
   --bg: #f7f8fa;
   --surface: #fff;
   --text: #25352f;
-  --text-muted: #7b8580;
+  --text-muted: #69756e;
   --border: #e9edea;
   --accent: #315e4f;
   --accent-fg: #fff;
@@ -1284,6 +1284,18 @@ dialog::backdrop {
 }
 .about-content + button {
   margin-top: 10px;
+}
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0 16px;
+}
+.backup-actions > button {
+  flex: 1;
+}
+.backup-link {
+  font-size: 9px;
 }
 .toast {
   position: fixed;

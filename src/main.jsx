@@ -256,9 +256,7 @@ function App() {
                           <strong>{t.name}</strong>
                           <span>
                             {t.note ||
-                              (t.type === "income"
-                                ? "Pemasukan"
-                                : "Pengeluaran")}
+                              `${new Date(t.date + "T12:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" })} · ${category.name}`}
                           </span>
                         </div>
                       </div>
@@ -905,8 +903,11 @@ function App() {
                 Ruang untuk keuangan yang lebih tenang.
               </span>
             </span>
-            <button className="text-button backup-link" onClick={() => setModal({kind:"about"})}>
-              <ShieldCheck size={13}/> Cadangan & privasi
+            <button
+              className="text-button backup-link"
+              onClick={() => setModal({ kind: "about" })}
+            >
+              <ShieldCheck size={13} /> Cadangan & privasi
             </button>
             <a
               href="https://app.devin.ai/sessions/8ee1fab5699947a4a8613077a9b1c84c"
@@ -1052,8 +1053,27 @@ function App() {
             </p>
           </div>
           <div className="backup-actions">
-            <button className="secondary" onClick={() => download(JSON.stringify(data,null,2), `saku-cadangan-${localDate()}.json`, 'application/json')}><Download size={16}/> Ekspor cadangan</button>
-            <button className="secondary" onClick={() => {setModal(null);importRef.current.click();}}><Upload size={16}/> Impor cadangan</button>
+            <button
+              className="secondary"
+              onClick={() =>
+                download(
+                  JSON.stringify(data, null, 2),
+                  `saku-cadangan-${localDate()}.json`,
+                  "application/json",
+                )
+              }
+            >
+              <Download size={16} /> Ekspor cadangan
+            </button>
+            <button
+              className="secondary"
+              onClick={() => {
+                setModal(null);
+                importRef.current.click();
+              }}
+            >
+              <Upload size={16} /> Impor cadangan
+            </button>
           </div>
           <button className="primary full" onClick={() => setModal(null)}>
             Mengerti
