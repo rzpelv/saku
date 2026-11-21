@@ -1,0 +1,11 @@
+{
+  "appId": "id.saku.app",
+  "appName": "Saku",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f7f8fa",
+    "preferredContentMode": "mobile",
+    "scrollEnabled": true
+  }
+}
