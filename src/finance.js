@@ -36,6 +36,13 @@ export const categories = [
     budget: 400000,
   },
   { id: "other", name: "Lainnya", icon: "dots", color: "gray", budget: 500000 },
+  {
+    id: "education",
+    name: "Pendidikan",
+    icon: "briefcase",
+    color: "blue",
+    budget: 500000,
+  },
   { id: "salary", name: "Gaji", icon: "wallet", color: "mint", income: true },
   {
     id: "freelance",
@@ -76,6 +83,19 @@ export function emptyState() {
     transactions: [],
     budgets: defaultBudgets(),
   };
+}
+export function startPersonal(data) {
+  return {
+    ...data,
+    demo: false,
+    transactions: data.transactions.filter((t) => !/^demo-\d+$/.test(t.id)),
+  };
+}
+export function budgetsForMonth(data, month) {
+  return { ...data.budgets, ...data.monthlyBudgets?.[month] };
+}
+export function dateForMonth(month) {
+  return month === localDate().slice(0, 7) ? localDate() : `${month}-01`;
 }
 export function demoState() {
   const month = localDate().slice(0, 7);
@@ -172,6 +192,24 @@ export function parseBackup(raw) {
     new Set(data.transactions.map((t) => t.id)).size !==
       data.transactions.length ||
     !data.budgets ||
+    (data.monthlyBudgets !== undefined &&
+      (!data.monthlyBudgets ||
+        typeof data.monthlyBudgets !== "object" ||
+        Array.isArray(data.monthlyBudgets) ||
+        Object.keys(data.monthlyBudgets).length > 3600 ||
+        !Object.entries(data.monthlyBudgets).every(
+          ([month, values]) =>
+            /^\d{4}-\d{2}$/.test(month) &&
+            validDate(month + "-01") &&
+            values &&
+            typeof values === "object" &&
+            !Array.isArray(values) &&
+            Object.entries(values).every(
+              ([id, value]) =>
+                categories.some((c) => !c.income && c.id === id) &&
+                validAmount(value),
+            ),
+        ))) ||
     (data.entryDefaults !== undefined &&
       (!data.entryDefaults ||
         !["income", "expense"].includes(data.entryDefaults.type) ||
@@ -182,7 +220,11 @@ export function parseBackup(raw) {
         ))) ||
     !categories
       .filter((c) => !c.income)
-      .every((c) => validAmount(data.budgets[c.id]))
+      .every(
+        (c) =>
+          validAmount(data.budgets[c.id]) ||
+          (c.id === "education" && data.budgets[c.id] === undefined),
+      )
   )
     throw new Error(
       "Format cadangan tidak valid. Pilih file JSON hasil ekspor Saku.",
@@ -190,6 +232,16 @@ export function parseBackup(raw) {
   return {
     version: 1,
     demo: data.demo,
+    ...(data.monthlyBudgets
+      ? {
+          monthlyBudgets: Object.fromEntries(
+            Object.entries(data.monthlyBudgets).map(([month, values]) => [
+              month,
+              { ...values },
+            ]),
+          ),
+        }
+      : {}),
     ...(data.entryDefaults
       ? {
           entryDefaults: {
@@ -213,7 +265,7 @@ export function parseBackup(raw) {
     budgets: Object.fromEntries(
       categories
         .filter((c) => !c.income)
-        .map((c) => [c.id, data.budgets[c.id]]),
+        .map((c) => [c.id, data.budgets[c.id] ?? c.budget]),
     ),
   };
 }

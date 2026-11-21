@@ -8,6 +8,9 @@ import {
   validAmount,
   parseRupiah,
   latestTransactions,
+  startPersonal,
+  budgetsForMonth,
+  dateForMonth,
   validDate,
   csvExport,
 } from "./finance.js";
@@ -54,6 +57,52 @@ test("same-day transactions show newest insertion first regardless of random id"
     latestTransactions([older, newer, previous]).map((t) => t.id),
     ["aaa", "zzz", "previous"],
   );
+});
+test("starting personal removes only built-in demo entries and keeps real entries and budgets", () => {
+  const mixed = {
+    ...demoState(),
+    transactions: [...demoState().transactions, transaction],
+  };
+  const personal = startPersonal(mixed);
+  assert.equal(personal.demo, false);
+  assert.deepEqual(personal.transactions, [transaction]);
+  assert.deepEqual(personal.budgets, mixed.budgets);
+  assert.equal(mixed.demo, true);
+});
+test("month-specific budgets never rewrite other months and survive backups", () => {
+  const state = {
+    ...emptyState(),
+    monthlyBudgets: {
+      "2026-11": { bills: 900000 },
+      "2026-12": { bills: 1200000 },
+    },
+  };
+  assert.equal(budgetsForMonth(state, "2026-11").bills, 900000);
+  assert.equal(budgetsForMonth(state, "2026-12").bills, 1200000);
+  assert.equal(budgetsForMonth(state, "2026-10").bills, state.budgets.bills);
+  assert.deepEqual(parseBackup(JSON.stringify(state)), state);
+  assert.throws(() =>
+    parseBackup(
+      JSON.stringify({
+        ...state,
+        monthlyBudgets: { "2026-13": { bills: 10 } },
+      }),
+    ),
+  );
+  assert.throws(() =>
+    parseBackup(
+      JSON.stringify({
+        ...state,
+        monthlyBudgets: { "2026-11": { bills: -1 } },
+      }),
+    ),
+  );
+});
+test("legacy budgets gain Pendidikan without losing existing amounts", () => {
+  const legacy = emptyState();
+  delete legacy.budgets.education;
+  assert.equal(parseBackup(JSON.stringify(legacy)).budgets.education, 500000);
+  assert.equal(dateForMonth("2026-10"), "2026-10-01");
 });
 test("new backups preserve entry defaults and creation timestamps; old backups still work", () => {
   const state = {

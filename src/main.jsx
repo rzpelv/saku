@@ -40,6 +40,9 @@ import {
   monthLabel,
   demoState,
   emptyState,
+  startPersonal,
+  budgetsForMonth,
+  dateForMonth,
   summarize,
   validAmount,
   parseRupiah,
@@ -126,14 +129,34 @@ function App() {
   const [filter, setFilter] = useState("all");
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState("");
+  const [undoDelete, setUndoDelete] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const importRef = useRef(null);
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(""), 3500);
+      const timer = setTimeout(
+        () => {
+          setToast("");
+          setUndoDelete(null);
+        },
+        undoDelete ? 8000 : 3500,
+      );
       return () => clearTimeout(timer);
     }
-  }, [toast]);
+  }, [toast, undoDelete]);
+  function openEntry(next) {
+    setModal(
+      data.demo
+        ? {
+            kind: "start",
+            afterStart:
+              next.transaction && /^demo-\d+$/.test(next.transaction.id)
+                ? { kind: "transaction" }
+                : next,
+          }
+        : next,
+    );
+  }
   function save(next, message) {
     setData(next);
     try {
@@ -147,7 +170,8 @@ function App() {
     if (message) setToast(message);
   }
   const summary = summarize(data.transactions, month);
-  const totalBudget = Object.values(data.budgets).reduce((a, b) => a + b, 0);
+  const currentBudgets = budgetsForMonth(data, month);
+  const totalBudget = Object.values(currentBudgets).reduce((a, b) => a + b, 0);
   const usage = Math.round((summary.expense / totalBudget) * 100);
   const sorted = latestTransactions(summary.items);
   const filtered = sorted.filter(
@@ -287,7 +311,7 @@ function App() {
                         className="icon-button edit"
                         aria-label={`Edit ${t.name}`}
                         onClick={() =>
-                          setModal({ kind: "transaction", transaction: t })
+                          openEntry({ kind: "transaction", transaction: t })
                         }
                       >
                         <Pencil size={15} />
@@ -315,7 +339,7 @@ function App() {
             {!search && filter === "all" && (
               <button
                 className="text-button"
-                onClick={() => setModal({ kind: "transaction" })}
+                onClick={() => openEntry({ kind: "transaction" })}
               >
                 Tambah transaksi <ArrowRight size={16} />
               </button>
@@ -343,7 +367,7 @@ function App() {
       .slice(0, all ? undefined : 3)
       .map((c) => {
         const spent = summary.byCategory[c.id];
-        const budget = data.budgets[c.id];
+        const budget = currentBudgets[c.id];
         const percent = Math.round((spent / budget) * 100);
         return (
           <div className="budget-row" key={c.id}>
@@ -367,12 +391,17 @@ function App() {
               {all && (
                 <button
                   className="text-button"
-                  onClick={() => setModal({ kind: "budget", category: c })}
+                  onClick={() => openEntry({ kind: "budget", category: c })}
                 >
                   <Pencil size={13} /> Ubah
                 </button>
               )}
             </div>
+            {spent > budget && (
+              <p className="budget-over negative">
+                Lebih {currency(spent - budget)} dari anggaran
+              </p>
+            )}
           </div>
         );
       });
@@ -527,7 +556,7 @@ function App() {
             </div>
             <button
               className="primary"
-              onClick={() => setModal({ kind: "transaction" })}
+              onClick={() => openEntry({ kind: "transaction" })}
             >
               <Plus size={18} /> Tambah transaksi
             </button>
@@ -565,7 +594,7 @@ function App() {
             </div>
             <span className="period-hint">
               {page === "budgets"
-                ? "Anggaran berulang setiap bulan"
+                ? "Anggaran khusus bulan terpilih"
                 : "Satu bulan, satu langkah lebih baik"}
             </span>
           </div>
@@ -825,7 +854,7 @@ function App() {
                         <button
                           className="icon-button"
                           onClick={() =>
-                            setModal({ kind: "budget", category: c })
+                            openEntry({ kind: "budget", category: c })
                           }
                           aria-label={`Ubah anggaran ${c.name}`}
                         >
@@ -942,11 +971,28 @@ function App() {
         <div className="toast" role="status">
           <Check size={17} />
           {toast}
+          {undoDelete && toast === "Transaksi dihapus" && (
+            <button
+              onClick={() => {
+                const transactions = [...data.transactions];
+                transactions.splice(
+                  undoDelete.index,
+                  0,
+                  undoDelete.transaction,
+                );
+                save({ ...data, transactions }, "Transaksi dikembalikan");
+                setUndoDelete(null);
+              }}
+            >
+              Urungkan
+            </button>
+          )}
         </div>
       )}
       {modal?.kind === "transaction" && (
         <TransactionModal
           defaults={data.entryDefaults}
+          defaultDate={dateForMonth(month)}
           transaction={modal.transaction}
           onClose={() => setModal(null)}
           onSave={(transaction) => {
@@ -974,13 +1020,20 @@ function App() {
       {modal?.kind === "budget" && (
         <BudgetModal
           category={modal.category}
-          amount={data.budgets[modal.category.id]}
+          amount={currentBudgets[modal.category.id]}
+          month={month}
           onClose={() => setModal(null)}
           onSave={(amount) => {
             save(
               {
                 ...data,
-                budgets: { ...data.budgets, [modal.category.id]: amount },
+                monthlyBudgets: {
+                  ...data.monthlyBudgets,
+                  [month]: {
+                    ...data.monthlyBudgets?.[month],
+                    [modal.category.id]: amount,
+                  },
+                },
               },
               "Anggaran diperbarui",
             );
@@ -1001,9 +1054,9 @@ function App() {
         >
           <p className="modal-description">
             {modal.kind === "start"
-              ? "Data contoh dan anggaran contoh akan diganti dengan catatan kosong dan anggaran awal. Selanjutnya, setiap catatan adalah milikmu."
+              ? "Mulai catatan pribadi sebelum menambah atau mengubah transaksi. Hanya transaksi contoh bawaan yang dihapus, termasuk perubahan pada contoh. Catatan baru yang sudah kamu tambahkan dan anggaran tetap disimpan. Ekspor cadangan dahulu jika perubahan pada contoh masih dibutuhkan."
               : modal.kind === "delete"
-                ? `“${modal.transaction.name}” akan dihapus permanen. Ringkasan dan anggaran akan ikut diperbarui.`
+                ? `“${modal.transaction.name}” akan dihapus. Kamu bisa mengurungkannya selama 8 detik setelah menghapus. Ringkasan dan anggaran akan ikut diperbarui.`
                 : `Cadangan berisi ${modal.data.transactions.length} transaksi. Seluruh data saat ini akan diganti, bukan digabung. Ekspor cadangan terlebih dahulu jika masih dibutuhkan.`}
           </p>
           <div className="modal-actions">
@@ -1015,11 +1068,18 @@ function App() {
               onClick={() => {
                 if (modal.kind === "start") {
                   save(
-                    emptyState(),
+                    startPersonal(data),
                     "Catatan pribadimu siap. Mulai dari satu transaksi.",
                   );
-                  setMonth(localDate().slice(0, 7));
-                } else if (modal.kind === "delete")
+                  setModal(modal.afterStart || null);
+                  return;
+                } else if (modal.kind === "delete") {
+                  setUndoDelete({
+                    transaction: modal.transaction,
+                    index: data.transactions.findIndex(
+                      (t) => t.id === modal.transaction.id,
+                    ),
+                  });
                   save(
                     {
                       ...data,
@@ -1029,12 +1089,12 @@ function App() {
                     },
                     "Transaksi dihapus",
                   );
-                else save(modal.data, "Cadangan berhasil dipulihkan");
+                } else save(modal.data, "Cadangan berhasil dipulihkan");
                 setModal(null);
               }}
             >
               {modal.kind === "start"
-                ? "Mulai dari nol"
+                ? "Mulai catatan pribadi"
                 : modal.kind === "delete"
                   ? "Ya, hapus"
                   : "Ganti & pulihkan"}
@@ -1060,7 +1120,8 @@ function App() {
             </p>
             <p>
               “Sisa uang” adalah pemasukan dikurangi pengeluaran bulan terpilih,
-              bukan saldo rekening bank. Anggaran berlaku berulang setiap bulan.
+              bukan saldo rekening bank. Anggaran awal berlaku tiap bulan;
+              perubahan hanya berlaku untuk bulan terpilih.
             </p>
           </div>
           <div className="backup-actions">
@@ -1137,6 +1198,7 @@ function AmountField({ name, label, initialValue }) {
 function TransactionModal({
   transaction,
   defaults,
+  defaultDate,
   onClose,
   onSave,
   onDelete,
@@ -1147,16 +1209,19 @@ function TransactionModal({
   const [category, setCategory] = useState(
     transaction?.category || defaults?.category || "food",
   );
+  const [dateInput, setDateInput] = useState(
+    (transaction?.date || defaultDate).split("-").reverse().join("-"),
+  );
   const [error, setError] = useState("");
   function submit(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const amount = parseRupiah(form.get("amount"));
     const name = form.get("name").trim();
-    const date = form.get("date");
+    const date = form.get("date").split("-").reverse().join("-");
     if (!validAmount(amount) || !name || !validDate(date)) {
       setError(
-        "Isi nama, tanggal yang valid, dan nominal rupiah bulat lebih dari nol (maksimal 1 triliun).",
+        "Isi nama, tanggal DD-MM-TTTT yang valid (1900–2199), dan nominal rupiah bulat lebih dari nol (maksimal 1 triliun).",
       );
       return;
     }
@@ -1176,7 +1241,7 @@ function TransactionModal({
       title={transaction ? "Edit transaksi" : "Catat transaksi baru"}
       onClose={onClose}
     >
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <div className="type-switch">
           <button
             type="button"
@@ -1238,12 +1303,23 @@ function TransactionModal({
             Tanggal
             <input
               name="date"
-              type="date"
-              min="1900-01-01"
-              max="2199-12-31"
+              type="text"
+              inputMode="numeric"
+              placeholder="DD-MM-TTTT"
+              aria-describedby="date-hint"
               required
-              defaultValue={transaction?.date || localDate()}
+              value={dateInput}
+              onChange={(e) =>
+                setDateInput(
+                  e.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 8)
+                    .replace(/^(\d{2})(\d)/, "$1-$2")
+                    .replace(/^(\d{2}-\d{2})(\d)/, "$1-$2"),
+                )
+              }
             />
+            <small id="date-hint">Hari-bulan-tahun, misalnya 21-11-2026.</small>
           </label>
         </div>
         <label className="field">
@@ -1268,7 +1344,7 @@ function TransactionModal({
               onClick={() => onDelete(transaction)}
               aria-label="Hapus transaksi"
             >
-              <Trash2 size={18} />
+              <Trash2 size={18} /> Hapus
             </button>
           )}
           <button type="button" className="secondary" onClick={onClose}>
@@ -1283,14 +1359,15 @@ function TransactionModal({
     </Modal>
   );
 }
-function BudgetModal({ category, amount, onClose, onSave }) {
+function BudgetModal({ category, amount, month, onClose, onSave }) {
   const [error, setError] = useState("");
   return (
     <Modal title={`Anggaran ${category.name.toLowerCase()}`} onClose={onClose}>
       <p className="modal-description">
-        Tentukan batas yang nyaman untukmu. Anggaran ini berlaku setiap bulan.
+        Anggaran khusus {monthLabel(month)}. Bulan lain tidak berubah.
       </p>
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           const value = parseRupiah(
