@@ -3,6 +3,11 @@
   "appName": "Saku",
   "webDir": "dist",
   "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#f7f8fa",
+      "showSpinner": false
+    },
     "Keyboard": {
       "resize": "native"
     }

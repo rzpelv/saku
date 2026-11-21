@@ -55,6 +55,7 @@ import {
 import "./style.css";
 import { LedgerConflictError, writeLedger } from "./storage.js";
 import { exportFile } from "./export.js";
+import { SplashScreen } from "@capacitor/splash-screen";
 
 const KEY = "saku.finance.v1";
 const icons = {
@@ -125,6 +126,12 @@ function Modal({ title, children, onClose, wide = false }) {
   );
 }
 function App() {
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => { void SplashScreen.hide(); });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const [loaded] = useState(initial);
   const persisted = useRef(loaded.raw);
   const [data, setData] = useState(loaded.data);
