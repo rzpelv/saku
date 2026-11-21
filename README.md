@@ -1,5 +1,7 @@
 # Saku
 
+Saku — pencatat keuangan pribadi berbahasa Indonesia.
+
 A mobile-friendly Indonesian personal finance tracker. React + Vite, with a small Node production server and no external services.
 
 ## Run
